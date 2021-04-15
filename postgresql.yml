@@ -17,28 +17,50 @@
   become_user: postgres
   gather_facts: no
   vars:
-    database: ads_microservice_production
-    user: ads
+    ads_database: ads_microservice_production
+    ads_user: ads
+    auth_database: auth_microservice_production
+    auth_user: auth
     password: '{{ postgresql_password }}'
   vars_files:
     - secrets.yml
   tasks:
-    - name: ensure database is created
+    - name: ensure ads database is created
       postgresql_db:
-        name: '{{ database }}'
-    - name: ensure user has access to database
+        name: '{{ ads_database }}'
+    - name: ensure user has access to ads database
       postgresql_user:
-        db: '{{ database }}'
-        name: '{{ user }}'
+        db: '{{ ads_database }}'
+        name: '{{ ads_user }}'
         password: '{{ password }}'
         priv: ALL
     - name: ensure user has no extra privileges
       postgresql_user:
-        name: '{{ user }}'
+        name: '{{ ads_user }}'
         role_attr_flags: NOSUPERUSER,NOCREATEDB
-    - name: ensure no other user can access the database
+    - name: ensure no other user can access the ads database
       postgresql_privs:
-        db: '{{ database }}'
+        db: '{{ ads_database }}'
+        role: PUBLIC
+        type: database
+        priv: ALL
+        state: absent
+    - name: ensure auth database is created
+      postgresql_db:
+        name: '{{ auth_database }}'
+    - name: ensure user has access to auth database
+      postgresql_user:
+        db: '{{ auth_database }}'
+        name: '{{ auth_user }}'
+        password: '{{ password }}'
+        priv: ALL
+    - name: ensure user has no extra privileges
+      postgresql_user:
+        name: '{{ auth_user }}'
+        role_attr_flags: NOSUPERUSER,NOCREATEDB
+    - name: ensure no other user can access the auth database
+      postgresql_privs:
+        db: '{{ auth_database }}'
         role: PUBLIC
         type: database
         priv: ALL
