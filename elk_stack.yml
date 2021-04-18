@@ -1,0 +1,78 @@
+---
+- hosts: elk
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: ensure packages are installed
+      apt:
+        name: apt-transport-https
+    - name: ensure ELK keys is added
+      apt_key:
+        url: 'https://artifacts.elastic.co/GPG-KEY-elasticsearch'
+        state: present
+    - name: ensure ELK repositories are added
+      apt_repository:
+        repo: 'deb https://artifacts.elastic.co/packages/oss-7.x/apt stable main'
+        state: present
+    - name: ensure elasticsearch installed
+      apt:
+        name: elasticsearch-oss
+        state: present
+    - name: ensure config uploaded
+      copy:
+        src: elasticsearch.yml
+        dest: /etc/elasticsearch/elasticsearch.yml
+    - name: enable autostart and restart elasticsearch
+      shell: >
+        systemctl daemon-reload && systemctl enable elasticsearch.service && systemctl stop elasticsearch.service && systemctl start elasticsearch.service
+
+    - name: ensure kibana installed
+      apt:
+        name: kibana-oss
+        state: present
+    - name: ensure kibana is started
+      service:
+        name: kibana
+        state: started
+        enabled: true
+
+    - name: ensure logstash installed
+      apt:
+        name: logstash-oss
+        state: present
+    - name: ensure logstash config uploaded
+      copy:
+        src: logstash.conf
+        dest: /etc/logstash/conf.d/logstash.conf
+      notify: restart logstash
+    - name: ensure logstash started
+      service:
+        name: logstash
+        state: started
+        enabled: true
+
+    - name: ensure filebeat installed
+      apt:
+        name: filebeat
+        state: present
+    - name: ensure filebeat config uploaded
+      copy:
+        src: filebeat.yml
+        dest: /etc/filebeat/filebeat.yml
+      notify: restart filebeat
+    - name: ensure filebeat started
+      service:
+        name: filebeat
+        state: started
+        enabled: true
+
+  handlers:
+    - name: restart logstash
+      service:
+        name: logstash
+        state: restarted
+        enabled: true
+    - name: restart filebeat
+      service:
+        name: filebeat
+        state: restarted
