@@ -1,0 +1,123 @@
+---
+- hosts: elk
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: pull elasticsearch image on remote
+      become: yes
+      docker_image:
+        name: docker.elastic.co/elasticsearch/elasticsearch-oss:7.8.0
+        source: pull
+
+    - name: ensure elasticsearch config directory is created
+      file:
+        path: /usr/share/elasticsearch/config
+        state: directory
+
+    - name: ensure elasticsearch config is uploaded
+      copy:
+        src: elasticsearch.yml
+        dest: /usr/share/elasticsearch/config/elasticsearch.yml
+
+    - name: run elasticsearch docker container
+      become: yes
+      docker_container:
+        name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.8.0
+        detach: yes
+        auto_remove: no
+        ports:
+          - "9200:9200"
+        volumes:
+          - /usr/share/elasticsearch/data:/usr/share/elasticsearch/data
+          - /usr/share/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+        restart_policy: on-failure
+        restart_retries: 10
+        state: started
+
+    - name: pull kibana image on remote
+      become: yes
+      docker_image:
+        name: docker.elastic.co/kibana/kibana-oss:7.8.0
+        source: pull
+
+    - name: run kibana docker container
+      become: yes
+      environment:
+        ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      docker_container:
+        name: kibana
+        image: docker.elastic.co/kibana/kibana-oss:7.8.0
+        detach: yes
+        auto_remove: no
+        ports:
+          - "5601:5601"
+        restart_policy: on-failure
+        restart_retries: 10
+        state: started
+
+    - name: pull filebeat image on remote
+      become: yes
+      docker_image:
+        name: docker.elastic.co/beats/filebeat-oss:7.8.0
+        source: pull
+
+    - name: ensure filebeat config directory is created
+      file:
+        path: /usr/share/filebeat/data
+        state: directory
+
+    - name: ensure filebeat config is uploaded
+      copy:
+        src: filebeat.yml
+        dest: /usr/share/filebeat/filebeat.yml
+
+    - name: run filebeat docker container
+      become: yes
+      docker_container:
+        name: filebeat
+        image: docker.elastic.co/beats/filebeat-oss:7.8.0
+        detach: yes
+        auto_remove: no
+
+        volumes:
+          - /usr/share/filebeat/data:/usr/share/filebeat/data
+          - /usr/share/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+          - /var/log/app.log:/var/log/app.log:ro
+        restart_policy: on-failure
+        restart_retries: 10
+        state: started
+
+    - name: pull logstash image on remote
+      become: yes
+      docker_image:
+        name: docker.elastic.co/logstash/logstash-oss:7.8.0
+        source: pull
+
+    - name: ensure logstash config directory is created
+      file:
+        path: /usr/share/logstash/pipeline
+        state: directory
+
+    - name: ensure logstash config is uploaded
+      copy:
+        src: logstash.conf
+        dest: /usr/share/logstash/pipeline
+
+    - name: run logstash docker container
+      become: yes
+      docker_container:
+        name: logstash
+        image: docker.elastic.co/logstash/logstash-oss:7.8.0
+        detach: yes
+        auto_remove: no
+        ports:
+          - "5044:5044"
+          - "5000:5000/tcp"
+          - "5000:5000/udp"
+          -  "9600:9600"
+        volumes:
+          - /usr/share/logstash/pipeline:/usr/share/logstash/pipeline:ro
+        restart_policy: on-failure
+        restart_retries: 10
+        state: started
